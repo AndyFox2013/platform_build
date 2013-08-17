@@ -33,6 +33,7 @@ PRODUCT_PACKAGES := \
     InputDevices \
     LatinIME \
     Launcher2 \
+    Music \
     MusicFX \
     OneTimeInitializer \
     Provision \
@@ -60,7 +61,12 @@ PRODUCT_PACKAGES += \
     icu.dat
 
 PRODUCT_PACKAGES += \
-    librs_jni
+    librs_jni \
+    libvideoeditor_jni \
+    libvideoeditor_core \
+    libvideoeditor_osal \
+    libvideoeditor_videofilters \
+    libvideoeditorplayer \
 
 PRODUCT_PACKAGES += \
     audio.primary.default \
