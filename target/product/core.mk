@@ -20,7 +20,7 @@
 # core_minimal.mk instead.
 
 PRODUCT_PROPERTY_OVERRIDES := \
-    ro.config.notification_sound=OnTheHunt.ogg \
+    ro.config.notification_sound=pixiedust.ogg \
     ro.config.alarm_alert=Alarm_Classic.ogg
 
 PRODUCT_PACKAGES += \
@@ -31,6 +31,8 @@ PRODUCT_PACKAGES += \
     DefaultContainerService \
     Home \
     KeyChain \
+    MediaProvider \
+    PackageInstaller \
     PicoTts \
     SharedStorageBackup \
     TelephonyProvider \
@@ -44,6 +46,10 @@ PRODUCT_PACKAGES += \
     libbcc \
     libfilterpack_imageproc \
     libgabi++ \
+    libanalogradiobroadcasting \
+    libicui18n \
+    libicuuc \
+    libjavacore \
     libkeystore \
     libmdnssd \
     libnfc_ndef \

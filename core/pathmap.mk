@@ -96,6 +96,9 @@ FRAMEWORKS_BASE_SUBDIRS := \
 	    telephony \
 	    wifi \
 	    keystore \
+	    icu4j \
+	    voip \
+	    fmradio \
 	 )
 
 #
@@ -114,6 +117,7 @@ FRAMEWORKS_SUPPORT_SUBDIRS := \
         v4 \
         v7/gridlayout \
         v7/appcompat \
+        v7/mediarouter \
         v8/renderscript \
         v13
 

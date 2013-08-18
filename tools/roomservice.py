@@ -34,13 +34,13 @@ except:
     device = product
 
 if not depsonly:
-    print "Device %s not found. Attempting to retrieve device repository from ParanoidAndroid Github (http://github.com/ParanoidAndroid)." % device
+    print "Device %s not found. Attempting to retrieve device repository from BeerGangProject Github (http://github.com/BeerGangProject)." % device
 
 repositories = []
 
 try:
     authtuple = netrc.netrc().authenticators("api.github.com")
-
+    
     if authtuple:
         githubauth = base64.encodestring('%s:%s' % (authtuple[0], authtuple[2])).replace('\n', '')
     else:
@@ -50,7 +50,7 @@ except:
 
 page = 1
 while not depsonly:
-    githubreq = urllib2.Request("https://api.github.com/users/ParanoidAndroid/repos?per_page=100&page=%d" % page)
+    githubreq = urllib2.Request("https://api.github.com/users/BeerGangProject/repos?per_page=100&page=%d" % page)
     if githubauth:
         githubreq.add_header("Authorization","Basic %s" % githubauth)
     result = json.loads(urllib2.urlopen(githubreq).read())
@@ -88,22 +88,22 @@ def get_from_manifest(devicename):
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
-
+    
     for localpath in lm.findall("project"):
-        if re.search("android_device_.*_%s$" % device, localpath.get("name")):
+        if re.search("device_.*_%s$" % device, localpath.get("name")):
             return localpath.get("path")
-
+    
     # Devices originally from AOSP are in the main manifest...
     try:
         mm = ElementTree.parse(".repo/manifest.xml")
         mm = mm.getroot()
     except:
         mm = ElementTree.Element("manifest")
-
+    
     for localpath in mm.findall("project"):
-        if re.search("android_device_.*_%s$" % device, localpath.get("name")):
+        if re.search("device_.*_%s$" % device, localpath.get("name")):
             return localpath.get("path")
-
+    
     return None
 
 def is_in_manifest(projectname):
@@ -112,71 +112,110 @@ def is_in_manifest(projectname):
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
-
+    
     for localpath in lm.findall("project"):
         if localpath.get("name") == projectname:
             return 1
-
+    
     return None
 
-def add_to_manifest(repositories):
-    if not os.path.exists(".repo/local_manifests/"):
-        os.makedirs(".repo/local_manifests/")
-
-
+def add_to_manifest_dependencies(repositories):
     try:
         lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
+    
+    for repository in repositories:
+        repo_name = repository['repository']
+        repo_target = repository['target_path']
+        existing_project = exists_in_tree(lm, repo_target)
+        if existing_project != None:
+            if existing_project.attrib['name'] != repository['repository']:
+                print 'Updating dependency %s' % (repo_name)
+                existing_project.set('name', repository['repository'])
+            if existing_project.attrib['revision'] == repository['branch']:
+                print 'BeerGangProject/%s already exists' % (repo_name)
+            else:
+                print 'updating branch for %s to %s' % (repo_name, repository['branch'])
+                existing_project.set('revision', repository['branch'])
+            continue
+        
+        print 'Adding dependency: %s -> %s' % (repo_name, repo_target)
+        project = ElementTree.Element("project", attrib = { "path": repo_target,
+                                      "remote": "github", "name": repo_name, "revision": "jellybean" })
+        
+        if 'branch' in repository:
+            project.set('revision',repository['branch'])
+        
+        lm.append(project)
+    
+    indent(lm, 0)
+    raw_xml = ElementTree.tostring(lm)
+    raw_xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + raw_xml
+    
+    f = open('.repo/local_manifests/roomservice.xml', 'w')
+    f.write(raw_xml)
+    f.close()
 
+def add_to_manifest(repositories):
+    if not os.path.exists(".repo/local_manifests/"):
+        os.makedirs(".repo/local_manifests/")
+    
+    
+    try:
+        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
+        lm = lm.getroot()
+    except:
+        lm = ElementTree.Element("manifest")
+    
     for repository in repositories:
         repo_name = repository['repository']
         repo_target = repository['target_path']
         if exists_in_tree(lm, repo_name):
-            print 'ParanoidAndroid/%s already exists' % (repo_name)
+            print 'BeerGangProject/%s already exists' % (repo_name)
             continue
-
-        print 'Adding dependency: ParanoidAndroid/%s -> %s' % (repo_name, repo_target)
+        
+        print 'Adding dependency: BeerGangProject/%s -> %s' % (repo_name, repo_target)
         project = ElementTree.Element("project", attrib = { "path": repo_target,
-            "remote": "github", "name": "ParanoidAndroid/%s" % repo_name, "revision": "jb43" })
-
+                                      "remote": "github", "name": "BeerGangProject/%s" % repo_name, "revision": "jellybean" })
+        
         if 'branch' in repository:
             project.set('revision',repository['branch'])
-
+        
         lm.append(project)
-
+    
     indent(lm, 0)
     raw_xml = ElementTree.tostring(lm)
     raw_xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + raw_xml
-
+    
     f = open('.repo/local_manifests/roomservice.xml', 'w')
     f.write(raw_xml)
     f.close()
 
 def fetch_dependencies(repo_path):
     print 'Looking for dependencies'
-    dependencies_path = repo_path + '/pa.dependencies'
+    dependencies_path = repo_path + '/bgp.dependencies'
     syncable_repos = []
-
+    
     if os.path.exists(dependencies_path):
         dependencies_file = open(dependencies_path, 'r')
         dependencies = json.loads(dependencies_file.read())
         fetch_list = []
-
+        
         for dependency in dependencies:
-            if not is_in_manifest("ParanoidAndroid/%s" % dependency['repository']):
+            if not is_in_manifest("%s" % dependency['repository']):
                 fetch_list.append(dependency)
                 syncable_repos.append(dependency['target_path'])
-
+        
         dependencies_file.close()
-
+        
         if len(fetch_list) > 0:
             print 'Adding dependencies to manifest'
             add_to_manifest(fetch_list)
     else:
         print 'Dependencies file not found, bailing out.'
-
+    
     if len(syncable_repos) > 0:
         print 'Syncing dependencies'
         os.system('repo sync %s' % ' '.join(syncable_repos))
@@ -187,26 +226,26 @@ if depsonly:
         fetch_dependencies(repo_path)
     else:
         print "Trying dependencies-only mode on a non-existing device tree?"
-
+    
     sys.exit()
 
 else:
     for repository in repositories:
         repo_name = repository['name']
-        if repo_name.startswith("android_device_") and repo_name.endswith("_" + device):
+        if repo_name.startswith("device_") and repo_name.endswith("_" + device):
             print "Found repository: %s" % repository['name']
-            manufacturer = repo_name.replace("android_device_", "").replace("_" + device, "")
-
+            manufacturer = repo_name.replace("device_", "").replace("_" + device, "")
+            
             repo_path = "device/%s/%s" % (manufacturer, device)
-
+            
             add_to_manifest([{'repository':repo_name,'target_path':repo_path}])
-
+            
             print "Syncing repository to retrieve project."
             os.system('repo sync %s' % repo_path)
             print "Repository synced!"
-
+            
             fetch_dependencies(repo_path)
             print "Done"
             sys.exit()
 
-print "Repository for %s not found in the ParanoidAndroid Github repository list. If this is in error, you may need to manually add it to your local_manifest.xml." % device
+print "Repository for %s not found in the Beer Gang Project Github repository list. If this is in error, you may need to manually add it to your local_manifest.xml." % device
