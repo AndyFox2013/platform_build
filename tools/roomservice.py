@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (C) 2012 The CyanogenMod Project
+# Copyright (C) 2013 BeerGangProject
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import sys
 import urllib2
 import json
 import re
-import netrc, base64
 from xml.etree import ElementTree
 
 product = sys.argv[1];
@@ -37,7 +36,6 @@ if not depsonly:
     print "Device %s not found. Attempting to retrieve device repository from BeerGangProject Github (http://github.com/BeerGangProject)." % device
 
 repositories = []
-
 try:
     authtuple = netrc.netrc().authenticators("api.github.com")
     
@@ -60,11 +58,20 @@ while not depsonly:
         repositories.append(res)
     page = page + 1
 
+local_manifests = r'.repo/local_manifests'
+if not os.path.exists(local_manifests): os.makedirs(local_manifests)
+
 def exists_in_tree(lm, repository):
     for child in lm.getchildren():
+        if child.attrib['path'].endswith(repository):
+            return child
+    return None
+
+def exists_in_tree_device(lm, repository):
+    for child in lm.getchildren():
         if child.attrib['name'].endswith(repository):
-            return True
-    return False
+            return child
+    return None
 
 # in-place prettyprint formatter
 def indent(elem, level=0):
@@ -84,7 +91,7 @@ def indent(elem, level=0):
 
 def get_from_manifest(devicename):
     try:
-        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
+        lm = ElementTree.parse(".repo/local_manifests/bgp_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -108,20 +115,20 @@ def get_from_manifest(devicename):
 
 def is_in_manifest(projectname):
     try:
-        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
+        lm = ElementTree.parse(".repo/local_manifests/bgp_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
     
     for localpath in lm.findall("project"):
-        if localpath.get("name") == projectname:
+        if localpath.get("name") == projectname and localpath.get("revision") == branch:
             return 1
     
     return None
 
 def add_to_manifest_dependencies(repositories):
     try:
-        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
+        lm = ElementTree.parse(".repo/local_manifests/bgp_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -143,7 +150,7 @@ def add_to_manifest_dependencies(repositories):
         
         print 'Adding dependency: %s -> %s' % (repo_name, repo_target)
         project = ElementTree.Element("project", attrib = { "path": repo_target,
-                                      "remote": "github", "name": repo_name, "revision": "jellybean" })
+                                      "remote": "github", "name": repo_name})
         
         if 'branch' in repository:
             project.set('revision',repository['branch'])
@@ -154,17 +161,13 @@ def add_to_manifest_dependencies(repositories):
     raw_xml = ElementTree.tostring(lm)
     raw_xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + raw_xml
     
-    f = open('.repo/local_manifests/roomservice.xml', 'w')
+    f = open('.repo/local_manifests/bgp_manifest.xml', 'w')
     f.write(raw_xml)
     f.close()
 
 def add_to_manifest(repositories):
-    if not os.path.exists(".repo/local_manifests/"):
-        os.makedirs(".repo/local_manifests/")
-    
-    
     try:
-        lm = ElementTree.parse(".repo/local_manifests/roomservice.xml")
+        lm = ElementTree.parse(".repo/local_manifests/bgp_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -173,15 +176,17 @@ def add_to_manifest(repositories):
         repo_name = repository['repository']
         repo_target = repository['target_path']
         if exists_in_tree(lm, repo_name):
-            print 'BeerGangProject/%s already exists' % (repo_name)
-            continue
+                print ('BeerGangProject/%s already exists' % (repo_name))
+                continue
         
         print 'Adding dependency: BeerGangProject/%s -> %s' % (repo_name, repo_target)
         project = ElementTree.Element("project", attrib = { "path": repo_target,
-                                      "remote": "github", "name": "BeerGangProject/%s" % repo_name, "revision": "jellybean" })
+                                      "remote": "github", "name": "BeerGangProject/%s" % repo_name })
         
         if 'branch' in repository:
-            project.set('revision',repository['branch'])
+            project.set('revision', repository['branch'])
+        else:
+            print("Using default branch for %s" % repo_name)
         
         lm.append(project)
     
@@ -189,7 +194,7 @@ def add_to_manifest(repositories):
     raw_xml = ElementTree.tostring(lm)
     raw_xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + raw_xml
     
-    f = open('.repo/local_manifests/roomservice.xml', 'w')
+    f = open('.repo/local_manifests/bgp_manifest.xml', 'w')
     f.write(raw_xml)
     f.close()
 
@@ -212,13 +217,16 @@ def fetch_dependencies(repo_path):
         
         if len(fetch_list) > 0:
             print 'Adding dependencies to manifest'
-            add_to_manifest(fetch_list)
+            add_to_manifest_dependencies(fetch_list)
     else:
         print 'Dependencies file not found, bailing out.'
     
     if len(syncable_repos) > 0:
         print 'Syncing dependencies'
         os.system('repo sync %s' % ' '.join(syncable_repos))
+
+def has_branch(branches, revision):
+    return revision in [branch['name'] for branch in branches]
 
 if depsonly:
     repo_path = get_from_manifest(device)
@@ -238,7 +246,7 @@ else:
             
             repo_path = "device/%s/%s" % (manufacturer, device)
             
-            add_to_manifest([{'repository':repo_name,'target_path':repo_path}])
+            add_to_manifest([{'repository':repo_name,'target_path':repo_path,'branch':'jellybean'}])
             
             print "Syncing repository to retrieve project."
             os.system('repo sync %s' % repo_path)
@@ -248,4 +256,4 @@ else:
             print "Done"
             sys.exit()
 
-print "Repository for %s not found in the Beer Gang Project Github repository list. If this is in error, you may need to manually add it to your local_manifest.xml." % device
+print "Repository for %s not found in the BeerGangProject Github repository list. If this is in error, you may need to manually add it to .repo/local_manifests/bgp_manifest.xml" % device
