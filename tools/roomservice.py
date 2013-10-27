@@ -33,7 +33,7 @@ except:
     device = product
 
 if not depsonly:
-    print "Device %s not found. Attempting to retrieve device repository from BeerGangProject Github (http://github.com/BeerGangProject)." % device
+    print "Device %s not found. Attempting to retrieve device repository from CyanDreamProject Github (http://github.com/CyanDreamProject)." % device
 
 repositories = []
 try:
@@ -48,7 +48,7 @@ except:
 
 page = 1
 while not depsonly:
-    githubreq = urllib2.Request("https://api.github.com/users/BeerGangProject/repos?per_page=100&page=%d" % page)
+    githubreq = urllib2.Request("https://api.github.com/users/CyanDreamProject/repos?per_page=100&page=%d" % page)
     if githubauth:
         githubreq.add_header("Authorization","Basic %s" % githubauth)
     result = json.loads(urllib2.urlopen(githubreq).read())
@@ -91,7 +91,7 @@ def indent(elem, level=0):
 
 def get_from_manifest(devicename):
     try:
-        lm = ElementTree.parse(".repo/local_manifests/bgp_manifest.xml")
+        lm = ElementTree.parse(".repo/local_manifests/cd_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -115,7 +115,7 @@ def get_from_manifest(devicename):
 
 def is_in_manifest(projectname):
     try:
-        lm = ElementTree.parse(".repo/local_manifests/bgp_manifest.xml")
+        lm = ElementTree.parse(".repo/local_manifests/cd_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -128,7 +128,7 @@ def is_in_manifest(projectname):
 
 def add_to_manifest_dependencies(repositories):
     try:
-        lm = ElementTree.parse(".repo/local_manifests/bgp_manifest.xml")
+        lm = ElementTree.parse(".repo/local_manifests/cd_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -142,7 +142,7 @@ def add_to_manifest_dependencies(repositories):
                 print 'Updating dependency %s' % (repo_name)
                 existing_project.set('name', repository['repository'])
             if existing_project.attrib['revision'] == repository['branch']:
-                print 'BeerGangProject/%s already exists' % (repo_name)
+                print 'CyanDreamProject/%s already exists' % (repo_name)
             else:
                 print 'updating branch for %s to %s' % (repo_name, repository['branch'])
                 existing_project.set('revision', repository['branch'])
@@ -167,7 +167,7 @@ def add_to_manifest_dependencies(repositories):
 
 def add_to_manifest(repositories):
     try:
-        lm = ElementTree.parse(".repo/local_manifests/bgp_manifest.xml")
+        lm = ElementTree.parse(".repo/local_manifests/cd_manifest.xml")
         lm = lm.getroot()
     except:
         lm = ElementTree.Element("manifest")
@@ -176,12 +176,12 @@ def add_to_manifest(repositories):
         repo_name = repository['repository']
         repo_target = repository['target_path']
         if exists_in_tree(lm, repo_name):
-                print ('BeerGangProject/%s already exists' % (repo_name))
+                print ('CyanDreamProject/%s already exists' % (repo_name))
                 continue
         
-        print 'Adding dependency: BeerGangProject/%s -> %s' % (repo_name, repo_target)
+        print 'Adding dependency: CyanDreamProject/%s -> %s' % (repo_name, repo_target)
         project = ElementTree.Element("project", attrib = { "path": repo_target,
-                                      "remote": "github", "name": "BeerGangProject/%s" % repo_name })
+                                      "remote": "github", "name": "CyanDreamProject/%s" % repo_name })
         
         if 'branch' in repository:
             project.set('revision', repository['branch'])
@@ -194,7 +194,7 @@ def add_to_manifest(repositories):
     raw_xml = ElementTree.tostring(lm)
     raw_xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + raw_xml
     
-    f = open('.repo/local_manifests/bgp_manifest.xml', 'w')
+    f = open('.repo/local_manifests/cd_manifest.xml', 'w')
     f.write(raw_xml)
     f.close()
 
@@ -256,4 +256,4 @@ else:
             print "Done"
             sys.exit()
 
-print "Repository for %s not found in the BeerGangProject Github repository list. If this is in error, you may need to manually add it to .repo/local_manifests/bgp_manifest.xml" % device
+print "Repository for %s not found in the CyanDreamProject Github repository list. If this is in error, you may need to manually add it to .repo/local_manifests/bgp_manifest.xml" % device
